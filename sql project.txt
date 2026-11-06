@@ -1,0 +1,379 @@
+```sql
+-- 1. CREATE TABLES
+
+CREATE TABLE Patients (
+    patient_id INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    age INT,
+    gender VARCHAR(10),
+    phone VARCHAR(15),
+    address VARCHAR(255),
+    registration_date DATE
+);
+
+CREATE TABLE Doctors (
+    doctor_id INT PRIMARY KEY,
+    name VARCHAR(100),
+    specialization VARCHAR(100),
+    phone VARCHAR(15),
+    joining_date DATE
+);
+
+CREATE TABLE Appointments (
+    appointment_id INT PRIMARY KEY,
+    patient_id INT,
+    doctor_id INT,
+    appointment_date DATE,
+    status VARCHAR(20),
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id)
+);
+
+CREATE TABLE Rooms (
+    room_id INT PRIMARY KEY,
+    room_type VARCHAR(50),
+    availability_status VARCHAR(20)
+);
+
+CREATE TABLE Admissions (
+    admission_id INT PRIMARY KEY,
+    patient_id INT,
+    room_id INT,
+    admission_date DATE,
+    discharge_date DATE,
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
+    FOREIGN KEY (room_id) REFERENCES Rooms(room_id)
+);
+
+CREATE TABLE Bills (
+    bill_id INT PRIMARY KEY,
+    patient_id INT,
+    total_amount DECIMAL(10,2),
+    payment_status VARCHAR(20),
+    bill_date DATE,
+    FOREIGN KEY (patient_id) REFERENCES Patients(patient_id)
+);
+
+
+-- 2. INSERT SAMPLE DATA
+
+INSERT INTO Patients VALUES
+(1, 'Ravi', 55, 'Male', '9876543210', 'Chennai', '2025-01-10'),
+(2, 'Priya', 30, 'Female', '9876543211', 'Bangalore', '2025-02-15'),
+(3, 'Kumar', 65, 'Male', '9876543212', 'Hyderabad', '2025-03-20'),
+(4, 'Anita', 42, 'Female', '9876543213', 'Mumbai', '2025-04-12'),
+(5, 'Arun', 25, 'Male', '9876543214', 'Chennai', '2025-05-18');
+
+INSERT INTO Doctors VALUES
+(101, 'Dr. Suresh', 'Cardiology', '9000000001', '2020-01-10'),
+(102, 'Dr. Meena', 'Neurology', '9000000002', '2019-05-15'),
+(103, 'Dr. Raj', 'Cardiology', '9000000003', '2021-03-20'),
+(104, 'Dr. Divya', 'Orthopedics', '9000000004', '2022-07-01');
+
+INSERT INTO Appointments VALUES
+(1001, 1, 101, CURDATE(), 'Completed'),
+(1002, 2, 102, CURDATE(), 'Scheduled'),
+(1003, 1, 101, '2025-06-10', 'Completed'),
+(1004, 3, 103, '2025-06-15', 'Cancelled'),
+(1005, 4, 104, '2025-06-20', 'Scheduled'),
+(1006, 2, 101, '2025-06-25', 'Completed'),
+(1007, 1, 103, '2025-07-01', 'Completed');
+
+INSERT INTO Rooms VALUES
+(201, 'General', 'Available'),
+(202, 'Private', 'Occupied'),
+(203, 'ICU', 'Available'),
+(204, 'General', 'Occupied');
+
+INSERT INTO Admissions VALUES
+(301, 1, 202, '2025-06-01', '2025-06-05'),
+(302, 2, 204, '2025-06-10', NULL),
+(303, 1, 201, '2025-07-01', '2025-07-04'),
+(304, 3, 203, '2025-07-05', NULL);
+
+INSERT INTO Bills VALUES
+(401, 1, 15000, 'Paid', '2025-06-05'),
+(402, 2, 25000, 'Unpaid', '2025-06-10'),
+(403, 3, 35000, 'Paid', '2025-06-15'),
+(404, 4, 12000, 'Paid', '2025-06-20'),
+(405, 1, 8000, 'Paid', '2025-07-04');
+
+
+-- 3. BASIC QUERIES
+
+SELECT * FROM Patients WHERE age > 50;
+
+SELECT * FROM Doctors
+WHERE specialization = 'Cardiology';
+
+SELECT * FROM Appointments
+WHERE appointment_date = CURDATE();
+
+SELECT * FROM Rooms
+WHERE availability_status = 'Available';
+
+
+-- 4. JOINS
+
+SELECT p.name AS patient_name, d.name AS doctor_name
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id
+JOIN Doctors d ON a.doctor_id = d.doctor_id;
+
+SELECT a.*, p.name AS patient_name, p.phone
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id;
+
+SELECT ad.*, p.name AS patient_name, r.room_type
+FROM Admissions ad
+JOIN Patients p ON ad.patient_id = p.patient_id
+JOIN Rooms r ON ad.room_id = r.room_id;
+
+SELECT b.*, p.name AS patient_name
+FROM Bills b
+JOIN Patients p ON b.patient_id = p.patient_id;
+
+SELECT d.name AS doctor_name, p.name AS patient_name
+FROM Appointments a
+JOIN Doctors d ON a.doctor_id = d.doctor_id
+JOIN Patients p ON a.patient_id = p.patient_id;
+
+
+-- 5. AGGREGATE FUNCTIONS
+
+SELECT COUNT(*) AS total_patients FROM Patients;
+
+SELECT AVG(age) AS average_age FROM Patients;
+
+SELECT SUM(total_amount) AS total_revenue FROM Bills;
+
+SELECT COUNT(*) AS total_appointments FROM Appointments;
+
+SELECT MAX(total_amount) AS highest_bill FROM Bills;
+
+
+-- 6. SUBQUERIES
+
+SELECT * FROM Patients p
+WHERE NOT EXISTS (
+    SELECT 1 FROM Appointments a
+    WHERE a.patient_id = p.patient_id
+);
+
+SELECT * FROM Doctors d
+WHERE NOT EXISTS (
+    SELECT 1 FROM Appointments a
+    WHERE a.doctor_id = d.doctor_id
+);
+
+SELECT * FROM Bills
+WHERE total_amount > (
+    SELECT AVG(total_amount) FROM Bills
+);
+
+SELECT p.*
+FROM Patients p
+JOIN Admissions ad ON p.patient_id = ad.patient_id
+GROUP BY p.patient_id, p.name, p.age, p.gender,
+         p.phone, p.address, p.registration_date
+HAVING COUNT(ad.admission_id) > 1;
+
+SELECT d.doctor_id, d.name, COUNT(a.appointment_id) AS appointment_count
+FROM Doctors d
+JOIN Appointments a ON d.doctor_id = a.doctor_id
+GROUP BY d.doctor_id, d.name
+HAVING COUNT(a.appointment_id) > (
+    SELECT AVG(appointment_count)
+    FROM (
+        SELECT COUNT(*) AS appointment_count
+        FROM Appointments
+        GROUP BY doctor_id
+    ) AS doctor_counts
+);
+
+
+-- 7. UPDATES AND DELETES
+
+UPDATE Patients
+SET phone = '9999999999'
+WHERE patient_id = 1;
+
+UPDATE Doctors
+SET specialization = 'Neurology'
+WHERE doctor_id = 101;
+
+UPDATE Rooms
+SET availability_status = 'Available'
+WHERE room_id = 202;
+
+DELETE FROM Appointments
+WHERE status = 'Cancelled';
+
+-- Delete patients who have no appointments, admissions, or bills.
+DELETE FROM Patients
+WHERE NOT EXISTS (
+    SELECT 1 FROM Appointments a
+    WHERE a.patient_id = Patients.patient_id
+)
+AND NOT EXISTS (
+    SELECT 1 FROM Admissions ad
+    WHERE ad.patient_id = Patients.patient_id
+)
+AND NOT EXISTS (
+    SELECT 1 FROM Bills b
+    WHERE b.patient_id = Patients.patient_id
+);
+
+
+-- 8. VIEWS
+
+CREATE VIEW PatientAppointments AS
+SELECT p.name AS patient_name, d.name AS doctor_name,
+       a.appointment_date, a.status
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id
+JOIN Doctors d ON a.doctor_id = d.doctor_id;
+
+CREATE VIEW DoctorDetails AS
+SELECT doctor_id, name, specialization, phone, joining_date
+FROM Doctors;
+
+CREATE VIEW AdmissionDetails AS
+SELECT ad.admission_id, p.name AS patient_name,
+       r.room_type, ad.admission_date, ad.discharge_date
+FROM Admissions ad
+JOIN Patients p ON ad.patient_id = p.patient_id
+JOIN Rooms r ON ad.room_id = r.room_id;
+
+CREATE VIEW PatientBilling AS
+SELECT p.patient_id, p.name,
+       COALESCE(SUM(b.total_amount), 0) AS total_billing
+FROM Patients p
+LEFT JOIN Bills b ON p.patient_id = b.patient_id
+GROUP BY p.patient_id, p.name;
+
+CREATE VIEW MostVisitedDoctors AS
+SELECT d.doctor_id, d.name, COUNT(a.appointment_id) AS total_visits
+FROM Doctors d
+LEFT JOIN Appointments a ON d.doctor_id = a.doctor_id
+GROUP BY d.doctor_id, d.name;
+
+
+-- 9. STORED PROCEDURES
+
+DELIMITER //
+
+CREATE PROCEDURE InsertPatient(
+    IN p_name VARCHAR(100),
+    IN p_age INT,
+    IN p_gender VARCHAR(10),
+    IN p_phone VARCHAR(15),
+    IN p_address VARCHAR(255),
+    IN p_registration_date DATE
+)
+BEGIN
+    INSERT INTO Patients
+        (patient_id, name, age, gender, phone, address, registration_date)
+    VALUES
+        ((SELECT COALESCE(MAX(patient_id), 0) + 1 FROM Patients),
+         p_name, p_age, p_gender, p_phone, p_address, p_registration_date);
+END //
+
+CREATE PROCEDURE UpdateRoomStatus(
+    IN p_room_id INT,
+    IN p_status VARCHAR(20)
+)
+BEGIN
+    UPDATE Rooms
+    SET availability_status = p_status
+    WHERE room_id = p_room_id;
+END //
+
+CREATE PROCEDURE GetPatientAppointments(
+    IN p_patient_id INT
+)
+BEGIN
+    SELECT a.*, d.name AS doctor_name
+    FROM Appointments a
+    JOIN Doctors d ON a.doctor_id = d.doctor_id
+    WHERE a.patient_id = p_patient_id;
+END //
+
+CREATE PROCEDURE CalculateTotalRevenue()
+BEGIN
+    SELECT COALESCE(SUM(total_amount), 0) AS total_revenue
+    FROM Bills;
+END //
+
+CREATE PROCEDURE GetDoctorsBySpecialization(
+    IN p_specialization VARCHAR(100)
+)
+BEGIN
+    SELECT *
+    FROM Doctors
+    WHERE specialization = p_specialization;
+END //
+
+DELIMITER ;
+
+
+-- 10. REPORTS AND ANALYSIS
+
+-- Top 5 doctors with the most appointments
+SELECT d.doctor_id, d.name, COUNT(a.appointment_id) AS total_appointments
+FROM Doctors d
+LEFT JOIN Appointments a ON d.doctor_id = a.doctor_id
+GROUP BY d.doctor_id, d.name
+ORDER BY total_appointments DESC
+LIMIT 5;
+
+-- Most frequent patients
+SELECT p.patient_id, p.name, COUNT(a.appointment_id) AS total_visits
+FROM Patients p
+JOIN Appointments a ON p.patient_id = a.patient_id
+GROUP BY p.patient_id, p.name
+ORDER BY total_visits DESC;
+
+-- Monthly appointment report
+SELECT YEAR(appointment_date) AS year,
+       MONTH(appointment_date) AS month,
+       COUNT(*) AS total_appointments
+FROM Appointments
+GROUP BY YEAR(appointment_date), MONTH(appointment_date)
+ORDER BY year, month;
+
+-- Doctor generating the highest revenue
+SELECT d.doctor_id, d.name,
+       SUM(b.total_amount) AS total_revenue
+FROM Doctors d
+JOIN Appointments a ON d.doctor_id = a.doctor_id
+JOIN Bills b ON a.patient_id = b.patient_id
+GROUP BY d.doctor_id, d.name
+ORDER BY total_revenue DESC
+LIMIT 1;
+
+-- Patient billing analysis
+SELECT p.patient_id, p.name,
+       COUNT(b.bill_id) AS total_bills,
+       COALESCE(SUM(b.total_amount), 0) AS total_billing,
+       COALESCE(SUM(
+           CASE WHEN b.payment_status = 'Paid'
+                THEN b.total_amount ELSE 0 END
+       ), 0) AS paid_amount,
+       COALESCE(SUM(
+           CASE WHEN b.payment_status = 'Unpaid'
+                THEN b.total_amount ELSE 0 END
+       ), 0) AS unpaid_amount
+FROM Patients p
+LEFT JOIN Bills b ON p.patient_id = b.patient_id
+GROUP BY p.patient_id, p.name;
+
+-- Most demanded specialization
+SELECT d.specialization,
+       COUNT(a.appointment_id) AS total_appointments
+FROM Doctors d
+LEFT JOIN Appointments a ON d.doctor_id = a.doctor_id
+GROUP BY d.specialization
+ORDER BY total_appointments DESC
+LIMIT 1;
+```
